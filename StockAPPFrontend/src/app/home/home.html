@@ -1,0 +1,282 @@
+<div class="container">
+  <h1>Stock Management System</h1>
+
+  <!-- Notification -->
+  <div *ngIf="notification" 
+       class="notification" 
+       [ngClass]="'notification-' + notificationType"
+       (click)="hideNotification()">
+    {{ notification }}
+    <span class="notification-close">×</span>
+  </div>
+
+  <!-- Main Scan Button -->
+  <div class="scan-section">
+    <button class="main-scan-btn" (click)="startBarcodeScanning()" [disabled]="isLoadingProduct">
+      <span class="scan-text">
+        {{ isLoadingProduct ? 'Processing...' : 'Scan Product Barcode' }}
+      </span>
+    </button>
+  </div>
+
+  <!-- Manual Barcode Input -->
+  <div class="manual-input-section">
+    <div class="input-toggle">
+      <button class="toggle-btn" (click)="toggleManualInput()" type="button">
+        <span>{{ showManualInput ? 'Hide Manual Input' : 'Enter Barcode Manually' }}</span>
+      </button>
+    </div>
+    
+    <div *ngIf="showManualInput" class="manual-input-form">
+      <div class="input-group">
+        <label for="manualBarcode">Enter Barcode:</label>
+        <div class="input-controls">
+          <input 
+            type="text" 
+            id="manualBarcode"
+            [(ngModel)]="manualBarcode" 
+            placeholder="Type or paste barcode here..."
+            class="barcode-input"
+            [disabled]="isLoadingProduct"
+            (keyup.enter)="processManualBarcode()">
+          <button 
+            class="process-btn" 
+            (click)="processManualBarcode()" 
+            [disabled]="!manualBarcode || isLoadingProduct"
+            type="button">
+            <span>{{ isLoadingProduct ? 'Processing...' : 'Lookup Product' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quantity Selector Modal -->
+  <div *ngIf="showQuantitySelector" class="quantity-modal-overlay">
+    <div class="quantity-modal">
+      <h3>Product Scanned!</h3>
+      
+      <div class="product-info">
+        <div class="product-name">{{ selectedProduct.name }}</div>
+        <div class="product-barcode">Barcode: {{ selectedProduct.barcode }}</div>
+        <div *ngIf="isExistingProduct" class="current-stock">
+          Current stock: {{ currentStock }}
+        </div>
+      </div>
+
+      <div class="quantity-selector">
+        <label for="scanQuantity">Select quantity:</label>
+        <div class="quantity-controls">
+          <button type="button" (click)="decrementScanQuantity()">-</button>
+          <input 
+            type="number" 
+            id="scanQuantity"
+            [(ngModel)]="scanQuantity" 
+            min="1" 
+            max="999"
+            class="quantity-input">
+          <button type="button" (click)="incrementScanQuantity()">+</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="add-btn" (click)="addToStock()">
+          Add {{ scanQuantity }} to Stock
+        </button>
+        <button 
+          class="remove-btn" 
+          (click)="removeFromStock()"
+          [disabled]="!isExistingProduct || currentStock < scanQuantity">
+          Remove {{ scanQuantity }} from Stock
+        </button>
+        <button class="cancel-btn" (click)="cancelQuantitySelection()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Product Modal -->
+  <div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+    <div class="modal-content edit-modal" (click)="$event.stopPropagation()">
+      <h3>Edit Product</h3>
+      
+      <form (ngSubmit)="saveEditedProduct()">
+        <div class="form-group">
+          <label for="editName">Product Name:</label>
+          <input 
+            type="text" 
+            id="editName"
+            [(ngModel)]="editingProduct.name" 
+            name="name"
+            required
+            minlength="1"
+            maxlength="100"
+            class="edit-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editQuantity">Quantity:</label>
+          <div class="quantity-controls">
+            <button type="button" (click)="decrementEditQuantity()" [disabled]="editingProduct.quantity <= 0">-</button>
+            <input 
+              type="number" 
+              id="editQuantity"
+              [(ngModel)]="editingProduct.quantity" 
+              name="quantity"
+              min="1"
+              required
+              class="quantity-input">
+            <button type="button" (click)="incrementEditQuantity()">+</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="save-btn">Save Changes</button>
+          <button type="button" class="cancel-btn" (click)="closeEditModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Product Inventory Section -->
+  <div class="products-section" *ngIf="products.length > 0">
+    <div class="products-header">
+      <h2>Product Inventory ({{ products.length }} items)</h2>
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="table-container desktop-view">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Barcode</th>
+            <th>Quantity</th>
+            <th>Quick Actions</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let product of products">
+            <td>{{ product.name }}</td>
+            <td>{{ product.barcode }}</td>
+            <td>
+              <div class="quantity-display">
+                <span class="quantity-value">{{ product.quantity }}</span>
+                <input 
+                  type="number" 
+                  [value]="product.quantity" 
+                  (change)="setCustomQuantity(product, +$event.target.value)"
+                  class="quantity-input"
+                  min="0"
+                >
+              </div>
+            </td>
+            <td>
+              <div class="quick-actions">
+                <button 
+                  class="qty-btn decrement" 
+                  (click)="decrementProductQuantity(product)"
+                  [disabled]="product.quantity <= 0"
+                  title="Remove 1 from stock">
+                  -1
+                </button>
+                <button 
+                  class="qty-btn increment" 
+                  (click)="incrementProductQuantity(product)"
+                  title="Add 1 to stock">
+                  +1
+                </button>
+                <button 
+                  class="qty-btn add-five" 
+                  (click)="quickAddQuantity(product, 5)"
+                  title="Add 5 to stock">
+                  +5
+                </button>
+                <button 
+                  class="qty-btn remove-five" 
+                  (click)="quickAddQuantity(product, -5)"
+                  [disabled]="product.quantity < 5"
+                  title="Remove 5 from stock">
+                  -5
+                </button>
+              </div>
+            </td>
+            <td>
+              <div class="actions">
+                <button class="edit-btn" (click)="editProduct(product)">Edit</button>
+                <button class="delete-btn" (click)="deleteProduct(product)">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-view">
+      <div class="product-card" *ngFor="let product of products">
+        <div class="card-header">
+          <h3 class="product-name">{{ product.name }}</h3>
+          <div class="product-quantity-badge">{{ product.quantity }}</div>
+        </div>
+        
+        <div class="card-body">
+          <div class="product-barcode">
+            <span class="barcode-label">Barcode:</span>
+            <span class="barcode-value">{{ product.barcode }}</span>
+          </div>
+          
+          <div class="quantity-section">
+            <label>Quantity:</label>
+            <div class="quantity-controls">
+              <input 
+                type="number" 
+                [value]="product.quantity" 
+                (change)="setCustomQuantity(product, +$event.target.value)"
+                class="quantity-input-mobile"
+                min="0"
+              >
+            </div>
+          </div>
+          
+          <div class="quick-actions-mobile">
+            <button 
+              class="qty-btn-mobile decrement" 
+              (click)="decrementProductQuantity(product)"
+              [disabled]="product.quantity <= 0">
+              -1
+            </button>
+            <button 
+              class="qty-btn-mobile increment" 
+              (click)="incrementProductQuantity(product)">
+              +1
+            </button>
+            <button 
+              class="qty-btn-mobile add-five" 
+              (click)="quickAddQuantity(product, 5)">
+              +5
+            </button>
+            <button 
+              class="qty-btn-mobile remove-five" 
+              (click)="quickAddQuantity(product, -5)"
+              [disabled]="product.quantity < 5">
+              -5
+            </button>
+          </div>
+          
+          <div class="actions-mobile">
+            <button class="edit-btn-mobile" (click)="editProduct(product)">Edit</button>
+            <button class="delete-btn-mobile" (click)="deleteProduct(product)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barcode Scanner Component -->
+  <app-barcode-scanner 
+    *ngIf="showScanner"
+    (barcodeScanned)="onBarcodeScanned($event)"
+    (scannerClosed)="onScannerClosed()">
+  </app-barcode-scanner>
+</div>
