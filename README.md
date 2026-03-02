@@ -49,7 +49,7 @@ A modern, mobile-first stock management application that combines barcode scanni
 - **Maven 3.6+**
 - **Device with camera** (for barcode scanning)
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Backend Setup
 ```bash
