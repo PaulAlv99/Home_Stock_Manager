@@ -62,3 +62,7 @@ cd STOCK_APP_FRONTEND
 npm install
 npm run start:network
 ```
+
+```bash
+This isn’t a production-ready app; some configurations are not optimal.
+```
